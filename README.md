@@ -6,10 +6,8 @@ Agente Onboarding Contable
 
 ---
 
-## 1) Arquitectura (visión general)
-
-```
-Usuario (Teams/Web) ──▶ Copilot (Copilot Studio)
+1) Arquitectura (visión general)
+Usuario (Teams/Web) ── Copilot (Copilot Studio)
                             │
                             ├─ Generative Answers (Conocimiento)
                             │     └─ SharePoint: /Procedimientos del Estudio
@@ -17,15 +15,8 @@ Usuario (Teams/Web) ──▶ Copilot (Copilot Studio)
                             └─ Acciones (Actions)
                                   ├─ Power Automate: «GenerateImageFromPrompt» → Azure OpenAI (DALL·E)
                                   └─ Power Automate: «SaveToSharePoint» (crear archivo + metadatos)
-
 Resultado: Respuesta + (opcional) imagen en SharePoint (Visuales/)
-```
-
----
-
-## 2) Estructura del repositorio
-
-```
+2) Estructura del repositorio
 /onboarding-copilot/
 ├─ README.md                          ← Este archivo
 ├─ prompts/
@@ -60,62 +51,40 @@ Resultado: Respuesta + (opcional) imagen en SharePoint (Visuales/)
 ├─ .env.example                       ← Variables (ENDPOINT, API_KEY, SITE_URL, LIBRARY)
 ├─ SECURITY.md                        ← Consideraciones de seguridad y PII
 └─ LICENSE
-```
 
----
+3) Prerrequisitos
+Microsoft 365 con acceso a Copilot Studio y Power Automate.
+SharePoint (sitio del estudio) con biblioteca: Procedimientos y Visuales.
+Azure AI Foundry / Azure OpenAI habilitado (modelo de imágenes: DALL·E).
+Permisos para crear conectores/acciones y flujos en el entorno.
 
-## 3) Prerrequisitos
+4) Conocimiento (texto→texto) en Copilot Studio
+Crear Agente nuevo en Copilot Studio (entorno del estudio).
+En Topics, agregar Bienvenida (saludo + menú: “Consultar procedimientos”, “Generar visual”).
+En Procedimientos, insertar un Generative Answers node apuntando a SharePoint del estudio.
+Biblioteca sugerida: Procedimientos (subcarpetas por área: IVA, IIBB, Sueldos, Clientes, Onboarding IT, etc.).
+Recomendación editorial: documentos cortos, títulos claros, glosario y “frases claves” por cada artículo.
+Políticas del agente (system prompt/guardrails) – ver prompts/system/agent-persona.md.
+Fallback: si no hay respuesta, sugerir búsqueda por palabras clave y ofrecer escalamiento a humano.
 
-* **Microsoft 365** con acceso a **Copilot Studio** y **Power Automate**.
-* **SharePoint** (sitio del estudio) con biblioteca: `Procedimientos` y `Visuales`.
-* **Azure AI Foundry / Azure OpenAI** habilitado (modelo de imágenes: DALL·E).
-* Permisos para crear **conectores/acciones** y flujos en el entorno.
+Plantillas de prompting (QA)
+zero-shot (rápido, sin ejemplos): ver prompts/text_to_text/zero-shot.md.
+one-shot/few-shot (mejor precisión en documentos repetitivos): ver prompts/text_to_text/*.
+Métrica mínima de calidad: la respuesta debe citar el documento/fuente (título o URL interna) y proponer pasos accionables.
 
----
-
-
-## 4) Conocimiento (texto→texto) en Copilot Studio
-
-1. Crear **Agente** nuevo en Copilot Studio (entorno del estudio).
-2. En **Topics**, agregar **Bienvenida** (saludo + menú: “Consultar procedimientos”, “Generar visual”).
-3. En **Procedimientos**, insertar un **Generative Answers node** apuntando a **SharePoint** del estudio.
-
-   * Biblioteca sugerida: `Procedimientos` (subcarpetas por área: IVA, IIBB, Sueldos, Clientes, Onboarding IT, etc.).
-   * Recomendación editorial: documentos cortos, títulos claros, glosario y “frases claves” por cada artículo.
-4. Políticas del agente (system prompt/guardrails) – ver `prompts/system/agent-persona.md`.
-5. Fallback: si no hay respuesta, sugerir búsqueda por palabras clave y ofrecer **escalamiento** a humano.
-
-### Plantillas de prompting (QA)
-
-* **zero-shot** (rápido, sin ejemplos): ver `prompts/text_to_text/zero-shot.md`.
-* **one-shot/few-shot** (mejor precisión en documentos repetitivos): ver `prompts/text_to_text/*`.
-
-> Métrica mínima de calidad: la respuesta debe **citar** el documento/fuente (título o URL interna) y proponer **pasos accionables**.
-
----
-
-## 5) Acciones (texto→imagen) con Power Automate + Azure OpenAI
-
-### Flujo A: `GenerateImageFromPrompt`
-
-**Objetivo:** generar una imagen basada en un prompt del agente.
-
-**Entradas del flujo** (desde Copilot):
-
-* `prompt`: texto que describe el diagrama/póster.
-* `style`: "flowchart" | "orgchart" | "poster" (opcional).
-* `size`: "1024x1024" (por defecto) u otro.
-
-**Pasos del flujo (resumen):**
-
-1. **Compose**: normalizar variables (prompt + estilo + tamaño).
-2. **HTTP** → Azure OpenAI (DALL·E) para `image generation`.
-3. **Parse JSON** de la respuesta (recibir `b64_json` o `url`).
-4. **Salida del flujo**: objeto con `image_name`, `image_bytes/base64`, `mime_type`, `style`.
-
-**Ejemplo de body HTTP** (referencia; ajustar a tu endpoint/modelo):
-
-```json
+5) Acciones (texto→imagen) con Power Automate + Azure OpenAI
+Flujo A: GenerateImageFromPrompt
+Objetivo: generar una imagen basada en un prompt del agente.
+Entradas del flujo (desde Copilot):
+prompt: texto que describe el diagrama/póster.
+style: "flowchart" | "orgchart" | "poster" (opcional).
+size: "1024x1024" (por defecto) u otro.
+Pasos del flujo (resumen):
+Compose: normalizar variables (prompt + estilo + tamaño).
+HTTP → Azure OpenAI (DALL·E) para image generation.
+Parse JSON de la respuesta (recibir b64_json o url).
+Salida del flujo: objeto con image_name, image_bytes/base64, mime_type, style.
+Ejemplo de body HTTP :
 {
   "model": "dall-e-3",
   "prompt": "[TEXTO DEL USUARIO + CONSIGNAS DE ESTILO]",
@@ -123,68 +92,47 @@ Resultado: Respuesta + (opcional) imagen en SharePoint (Visuales/)
   "n": 1,
   "response_format": "b64_json"
 }
-```
 
-> **Tip de prompting para diagramas:** en `prompt` especifica: “diagram-style, high-contrast, labeled nodes, consistent arrows, white background, minimal text”. Para pósters: “clean layout, large headline, 3–5 bullet points, brand colors (gris/naranja), iconography minimal”.
+Flujo B: SaveToSharePoint
+Objetivo: guardar la imagen generada en SharePoint.
+Entradas: image_name, image_bytes/base64, library, folder, metadata.
+Pasos:
+Compose nombre de archivo: YYYYMMDD-HHMM-<tipo>-<slug>.png.
+Create file (SharePoint) en biblioteca Visuales/.
+Update file properties: Autor, Área, Cliente, Tags.
+Salida: URL del archivo para devolver al agente.
 
-### Flujo B: `SaveToSharePoint`
+Conectar acciones al agente
+En Copilot Studio → Actions/Tools → Add → referenciar cada flujo
+Crear un topic “Generar recursos visuales”: recoge intención del usuario, solicita aclaraciones (tamaño, estilo, idioma), llama a GenerateImageFromPrompt y luego a SaveToSharePoint. Devuelve la URL y una mini-guía de uso.
 
-**Objetivo:** guardar la imagen generada en SharePoint.
+6) Demostración (VS Code + Teams)
+Escenario 1 (QA):
+Usuario: “¿Cómo armo la carpeta de cliente en SharePoint?”
+Agente: Respuesta en pasos + cita del procedimiento + botón “Ver documento”.
+Escenario 2 (Visual):
+Usuario: “Crea un organigrama del Estudio (6 equipos de impuestos y 1 de sueldos).”
+Agente → Acción: genera imagen PNG 1024×1024 + guarda en Visuales/Organigramas/ + devuelve link.
 
-**Entradas:** `image_name`, `image_bytes/base64`, `library`, `folder`, `metadata`.
+7) Experimentos de Prompting (Python)
+Archivo: scripts/prompt_eval.py
+Objetivo: comparar zero/one/few-shot para preguntas típicas de onboarding y medir: exactitud percibida, acción sugerida, fuente citada (sí/no).
+Esquema:
+Cargar .env con AZURE_OPENAI_API_KEY y ENDPOINT.
+Definir tests.json (preguntas + respuesta esperada/fuentes).
+Ejecutar cada estrategia de prompt (plantillas de prompts/text_to_text/).
+Registrar resultados en out/results.csv (para análisis rápido en Excel/Power BI).
+Métrica sugerida: 5–10 preguntas frecuentes; calificación 1–5 por criterio; promedio general y por técnica.
 
-**Pasos:**
+8) Guía editorial para documentos de Procedimientos
+Formato corto (≤ 1.5 páginas) con: objetivo, alcance, pasos, checklist, responsables, FAQs.
+Nombrado: AAAMM-Área-Tema-vX.md (ej.: 202509-IT-Onboarding-SharePoint-v1.md).
+Glosario: agrega palabras clave y sinónimos (ayuda a la búsqueda y a las respuestas del agente).
+Versionado: Usa PRs para cambios; etiqueta breaking-change si alteras pasos críticos.
 
-1. **Compose** nombre de archivo: `YYYYMMDD-HHMM-<tipo>-<slug>.png`.
-2. **Create file** (SharePoint) en biblioteca `Visuales/`
-3. **Update file properties**: `Autor`, `Área`, `Cliente`, `Tags`.
-4. **Salida:** URL del archivo para devolver al agente.
-
-### Conectar acciones al agente
-
-* En Copilot Studio → **Actions/Tools** → **Add** → referenciar cada flujo (se exponen como **acciones** del agente).
-* Crear un **topic** “Generar recursos visuales”: recoge intención del usuario, solicita aclaraciones (tamaño, estilo, idioma), llama a `GenerateImageFromPrompt` y luego a `SaveToSharePoint`. Devuelve la URL y una mini-guía de uso.
-
----
-
-## 6) Demostración (VS Code + Teams)
-
-**Escenario 1 (QA):**
-
-* Usuario: “¿Cómo armo la carpeta de cliente en SharePoint?”
-* Agente: Respuesta en pasos + cita del procedimiento + botón “Ver documento”.
-
-**Escenario 2 (Visual):**
-
-* Usuario: “Crea un organigrama del Estudio (6 equipos de impuestos y 1 de sueldos).”
-* Agente → Acción: genera imagen PNG 1024×1024 + guarda en `Visuales/Organigramas/` + devuelve link.
-
-> Para la demo, prepara 3–5 **prompts curados** en `prompts/text_to_image/` y 10–15 documentos cortos en `data/sample_procedures/`.
-
----
-
-## 8ç7) Experimentos de Prompting (Python)
-
-Archivo: `scripts/prompt_eval.py`
-
-**Objetivo:** comparar **zero/one/few-shot** para preguntas típicas de onboarding y medir: *exactitud percibida*, *acción sugerida*, *fuente citada* (sí/no).
-
-**Esquema:**
-
-* Cargar `.env` con `AZURE_OPENAI_API_KEY` y `ENDPOINT`.
-* Definir `tests.json` (preguntas + respuesta esperada/fuentes).
-* Ejecutar cada estrategia de prompt (plantillas de `prompts/text_to_text/`).
-* Registrar resultados en `out/results.csv` (para análisis rápido en Excel/Power BI).
-
-> **Métrica sugerida**: 5–10 preguntas frecuentes; calificación 1–5 por criterio; promedio general y por técnica.
-
----
-
-## 8) Guía editorial para documentos de Procedimientos
-
-* **Formato corto (≤ 1.5 páginas)** con: objetivo, alcance, pasos, checklist, responsables, FAQs.
-* **Nombrado**: `AAAMM-Área-Tema-vX.md` (ej.: `202509-IT-Onboarding-SharePoint-v1.md`).
-* **Glosario**: agrega palabras clave y sinónimos (ayuda a la búsqueda y a las respuestas del agente).
-* **Versionado**: Usa PRs para cambios; etiqueta `breaking-change` si alteras pasos críticos.
+9) Seguridad y Privacidad (SECURITY.md)
+Limita el alcance del agente a bibliotecas necesarias; respeta permisos de SharePoint.
+Revisa logs de Power Automate: evita registrar prompts con datos sensibles.
+Añade content filters y guardrails en el system prompt.
 
 
